@@ -8,4 +8,8 @@ class AgentPermissionFirewall(gl.Contract):
 
     @gl.public.write
     def register_agent(self, agent_id: str, owner: str):
+        assert agent_id != ""
+        assert owner != ""
+        assert agent_id not in self.agents
+
         self.agents[agent_id] = owner
