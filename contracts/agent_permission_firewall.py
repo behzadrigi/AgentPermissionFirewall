@@ -7,13 +7,21 @@ class Policy:
     version: int
 
 
+class ActionRequest:
+    action: str
+    amount: int
+    status: str
+
+
 class AgentPermissionFirewall(gl.Contract):
     agents: TreeMap[str, str]
     policies: TreeMap[str, Policy]
+    actions: TreeMap[str, ActionRequest]
 
     def __init__(self):
         self.agents = TreeMap()
         self.policies = TreeMap()
+        self.actions = TreeMap()
 
     @gl.public.write
     def register_agent(self, agent_id: str, owner: str):
