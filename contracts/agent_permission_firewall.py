@@ -36,3 +36,9 @@ class AgentPermissionFirewall(gl.Contract):
         assert agent_id in self.agents
 
         self.policies[agent_id] = policy
+
+    @gl.public.write
+    def submit_action(self, action_id: str, action: ActionRequest):
+        assert action_id != ""
+
+        self.actions[action_id] = action
