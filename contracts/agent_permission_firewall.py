@@ -5,3 +5,7 @@ class AgentPermissionFirewall(gl.Contract):
 
     def __init__(self):
         self.agents = TreeMap()
+
+    @gl.public.write
+    def register_agent(self, agent_id: str, owner: str):
+        self.agents[agent_id] = owner
