@@ -22,3 +22,9 @@ class AgentPermissionFirewall(gl.Contract):
         assert agent_id not in self.agents
 
         self.agents[agent_id] = owner
+
+    @gl.public.write
+    def set_policy(self, agent_id: str, policy: Policy):
+        assert agent_id in self.agents
+
+        self.policies[agent_id] = policy
