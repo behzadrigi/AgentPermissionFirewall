@@ -8,6 +8,7 @@ class Policy:
 
 
 class ActionRequest:
+    agent_id: str
     action: str
     amount: int
     status: str
