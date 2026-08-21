@@ -17,6 +17,7 @@ class ActionRequest:
 class Decision:
     result: str
     reason: str
+    requires_review: bool
 
 
 class AgentPermissionFirewall(gl.Contract):
@@ -61,15 +62,18 @@ class AgentPermissionFirewall(gl.Contract):
         if action.amount > policy.max_spending:
             self.decisions[action_id] = Decision(
                 result="REJECTED",
-                reason="Exceeds spending limit"
+                reason="Exceeds spending limit",
+                requires_review=False
             )
         elif action.action not in policy.allowed_actions:
             self.decisions[action_id] = Decision(
                 result="REJECTED",
-                reason="Action not allowed by policy"
+                reason="Action not allowed by policy",
+                requires_review=False
             )
         else:
             self.decisions[action_id] = Decision(
                 result="APPROVED",
-                reason="Action matches policy"
+                reason="Action matches policy",
+                requires_review=policy.requires_human_review
             )
