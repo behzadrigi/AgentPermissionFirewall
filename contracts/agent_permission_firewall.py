@@ -50,3 +50,21 @@ class AgentPermissionFirewall(gl.Contract):
         assert action_id != ""
 
         self.actions[action_id] = action
+
+    @gl.public.write
+    def evaluate_action(self, action_id: str):
+        assert action_id in self.actions
+
+        action = self.actions[action_id]
+        policy = self.policies[action.agent_id]
+
+        if action.amount <= policy.max_spending:
+            self.decisions[action_id] = Decision(
+                result="APPROVED",
+                reason="Within spending limit"
+            )
+        else:
+            self.decisions[action_id] = Decision(
+                result="REJECTED",
+                reason="Exceeds spending limit"
+            )
