@@ -2,7 +2,7 @@ from genlayer import *
 
 class Policy:
     max_spending: int
-    allowed_actions: str
+    allowed_actions: list[str]
     requires_human_review: bool
     version: int
 
@@ -58,13 +58,18 @@ class AgentPermissionFirewall(gl.Contract):
         action = self.actions[action_id]
         policy = self.policies[action.agent_id]
 
-        if action.amount <= policy.max_spending:
-            self.decisions[action_id] = Decision(
-                result="APPROVED",
-                reason="Within spending limit"
-            )
-        else:
+        if action.amount > policy.max_spending:
             self.decisions[action_id] = Decision(
                 result="REJECTED",
                 reason="Exceeds spending limit"
+            )
+        elif action.action not in policy.allowed_actions:
+            self.decisions[action_id] = Decision(
+                result="REJECTED",
+                reason="Action not allowed by policy"
+            )
+        else:
+            self.decisions[action_id] = Decision(
+                result="APPROVED",
+                reason="Action matches policy"
             )
