@@ -277,7 +277,7 @@ class AgentPermissionFirewall(gl.Contract):
         assert agent_id in self.agents
         assert version > 0
 
-        actions: DynArray[str] = DynArray()
+        actions = []
 
         self.policies[agent_id] = Policy(
             max_spending=max_spending,
