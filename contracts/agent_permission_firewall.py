@@ -193,51 +193,19 @@ class AgentPermissionFirewall(gl.Contract):
     # 18 Emergency control
     emergency: EmergencyControl
 
+def __init__(self):
 
-    def __init__(self):
+    self.admin = gl.message.sender_address
 
-        self.admin = gl.message.sender_address
+    self.consensus = ConsensusConfig(
+        minimum_votes=2
+    )
 
-        self.agents = TreeMap()
-
-        self.policies = TreeMap()
-
-        self.policy_bindings = TreeMap()
-
-        self.permission_scopes = TreeMap()
-
-        self.rate_limits = TreeMap()
-
-        self.actions = TreeMap()
-
-        self.action_status = TreeMap()
-
-        self.decisions = TreeMap()
-
-        self.human_approvals = TreeMap()
-
-        self.reviewers = TreeMap()
-
-        self.votes = TreeMap()
-
-        self.consensus = ConsensusConfig(
-            minimum_votes=2
-        )
-
-        self.execution_checks = TreeMap()
-
-        self.execution_receipts = TreeMap()
-
-        self.audit_events = TreeMap()
-
-        self.security_checks = TreeMap()
-
-        self.emergency = EmergencyControl(
-            paused=False,
-            reason=""
-        )
-
-
+    self.emergency = EmergencyControl(
+        paused=False,
+        reason=""
+    )
+    
     # --------------------------------------------------
     # 19 AUTHORITY
     # --------------------------------------------------
