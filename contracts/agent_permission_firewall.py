@@ -147,6 +147,8 @@ class AgentPermissionFirewall(gl.Contract):
     def _require_admin(self):
         assert gl.message.sender_address == self.admin
 
+    # ================= WRITE METHODS =================
+
     @gl.public.write
     def register_agent(self, agent_id: str):
         self._require_admin()
@@ -162,7 +164,7 @@ class AgentPermissionFirewall(gl.Contract):
         self.audit_events[agent_id + ":register"] = AuditEvent(
             action_id=agent_id,
             event_type="AGENT_REGISTERED",
-            message="Agent registered",
+            message="Agent registered successfully",
         )
 
     @gl.public.write
@@ -219,6 +221,16 @@ class AgentPermissionFirewall(gl.Contract):
 
         self.rate_limits[agent_id] = RateLimit(
             max_requests=max_requests, current_requests=0
+        )
+
+    @gl.public.write
+    def add_reviewer(self, reviewer_id: str, account: Address, role: str):
+        self._require_admin()
+        assert reviewer_id != ""
+        assert reviewer_id not in self.reviewers
+
+        self.reviewers[reviewer_id] = Reviewer(
+            account=account, role=role, active=True
         )
 
     @gl.public.write
@@ -307,6 +319,72 @@ class AgentPermissionFirewall(gl.Contract):
         )
         self.action_status[action_id] = ActionStatus(current=next_status)
 
+    @gl.public.write
+    def vote_action(
+        self, vote_id: str, action_id: str, reviewer_id: str, result: str, reason: str
+    ):
+        assert action_id in self.actions
+        assert reviewer_id in self.reviewers
+        assert self.reviewers[reviewer_id].active
+        assert gl.message.sender_address == self.reviewers[reviewer_id].account
+        assert vote_id not in self.votes
+
+        self.votes[vote_id] = ReviewerVote(
+            action_id=action_id,
+            reviewer=gl.message.sender_address,
+            result=result,
+            reason=reason,
+        )
+
+    @gl.public.write
+    def finalize_human_review(self, action_id: str, approved: bool):
+        self._require_admin()
+        assert action_id in self.actions
+        assert action_id in self.decisions
+        assert self.decisions[action_id].requires_review
+
+        if approved:
+            self.decisions[action_id] = Decision(
+                result="APPROVED",
+                reason="Human Review Passed",
+                requires_review=False,
+            )
+            self.action_status[action_id] = ActionStatus(current="APPROVED")
+        else:
+            self.decisions[action_id] = Decision(
+                result="REJECTED",
+                reason="Human Review Rejected",
+                requires_review=False,
+            )
+            self.action_status[action_id] = ActionStatus(current="REJECTED")
+
+    @gl.public.write
+    def record_execution(self, action_id: str, proof: str):
+        self._require_admin()
+        assert action_id in self.actions
+        assert action_id in self.decisions
+        assert self.decisions[action_id].result == "APPROVED"
+
+        self.execution_receipts[action_id] = ExecutionReceipt(
+            action_id=action_id,
+            executor=gl.message.sender_address,
+            result="EXECUTED",
+            proof=proof,
+        )
+        self.action_status[action_id] = ActionStatus(current="EXECUTED")
+
+    @gl.public.write
+    def pause_contract(self, reason: str):
+        self._require_admin()
+        self.emergency = EmergencyControl(paused=True, reason=reason)
+
+    @gl.public.write
+    def unpause_contract(self):
+        self._require_admin()
+        self.emergency = EmergencyControl(paused=False, reason="")
+
+    # ================= VIEW METHODS =================
+
     @gl.public.view
     def get_action_status(self, action_id: str) -> str:
         if action_id not in self.action_status:
@@ -318,3 +396,19 @@ class AgentPermissionFirewall(gl.Contract):
         if action_id not in self.decisions:
             return "NOT_FOUND"
         return self.decisions[action_id].result
+
+    @gl.public.view
+    def is_paused(self) -> bool:
+        return self.emergency.paused
+
+    @gl.public.view
+    def get_agent_status(self, agent_id: str) -> str:
+        if agent_id not in self.agents:
+            return "NOT_FOUND"
+        return self.agents[agent_id].status
+
+    @gl.public.view
+    def get_execution_receipt(self, action_id: str) -> str:
+        if action_id not in self.execution_receipts:
+            return "NOT_EXECUTED"
+        return self.execution_receipts[action_id].result
