@@ -227,7 +227,6 @@ class AgentPermissionFirewall(gl.Contract):
         assert reviewer_id != ""
         assert reviewer_id not in self.reviewers
 
-        # Fix: Convert input string to Address object if passed as string
         addr = Address(account) if isinstance(account, str) else account
 
         self.reviewers[reviewer_id] = Reviewer(
@@ -279,12 +278,12 @@ class AgentPermissionFirewall(gl.Contract):
         limit.current_requests += 1
         self.rate_limits[agent_id] = limit
 
-    @gl.public.write
+    # Fix: Changed decorator to @gl.public.nondet to permit gl.nondet execution
+    @gl.public.nondet
     def evaluate_action_consensus(self, action_id: str):
         """
         Material GenLayer Non-Deterministic Validator Consensus Evaluation
         """
-        self._require_admin()
         assert action_id in self.actions
 
         req = self.actions[action_id]
