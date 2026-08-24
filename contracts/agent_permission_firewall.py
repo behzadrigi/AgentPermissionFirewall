@@ -278,12 +278,8 @@ class AgentPermissionFirewall(gl.Contract):
         limit.current_requests += 1
         self.rate_limits[agent_id] = limit
 
-    # Fix: Changed decorator to @gl.public.nondet to permit gl.nondet execution
-    @gl.public.nondet
+    @gl.public.write
     def evaluate_action_consensus(self, action_id: str):
-        """
-        Material GenLayer Non-Deterministic Validator Consensus Evaluation
-        """
         assert action_id in self.actions
 
         req = self.actions[action_id]
@@ -291,7 +287,7 @@ class AgentPermissionFirewall(gl.Contract):
         scope = self.permission_scopes[req.scope_id]
 
         prompt = f"""
-        You are an AI Security Validator node in the GenLayer network executing non-deterministic consensus.
+        You are an AI Security Validator node in the GenLayer network executing consensus evaluation.
         Evaluate safety for the following AI Agent Action Request:
         - Agent ID: {req.agent_id}
         - Action Requested: {req.action}
@@ -307,11 +303,11 @@ class AgentPermissionFirewall(gl.Contract):
 
         if "APPROVED" in result_str:
             res = "APPROVED"
-            reason = "GenLayer Validator Non-Deterministic Consensus Approved"
+            reason = "GenLayer Validator Consensus Approved"
             next_status = "APPROVED"
         else:
             res = "REJECTED"
-            reason = "GenLayer Validator Non-Deterministic Consensus Rejected"
+            reason = "GenLayer Validator Consensus Rejected"
             next_status = "REJECTED"
 
         self.decisions[action_id] = Decision(
