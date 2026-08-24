@@ -423,7 +423,7 @@ class AgentPermissionFirewall(gl.Contract):
         Reply ONLY with "APPROVED" or "REVIEW_REQUIRED".
         """
 
-        consensus_result = gl.exec_prompt(prompt)
+        consensus_result = gl.nondet.exec_prompt(prompt)
 
         requires_review = policy.requires_human_review or (scope.risk_level >= 7)
 
