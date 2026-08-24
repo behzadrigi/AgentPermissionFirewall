@@ -45,13 +45,6 @@ class RateLimit:
 
 @allow_storage
 @dataclass
-class EmergencyControl:
-    paused: bool
-    reason: str
-
-
-@allow_storage
-@dataclass
 class ActionRequest:
     agent_id: str
     action: str
@@ -84,41 +77,11 @@ class Reviewer:
 
 @allow_storage
 @dataclass
-class ReviewerVote:
-    action_id: str
-    reviewer: Address
-    result: str
-    reason: str
-
-
-@allow_storage
-@dataclass
-class ConsensusConfig:
-    minimum_votes: u32
-
-
-@allow_storage
-@dataclass
-class ExecutionGuard:
-    allowed: bool
-    reason: str
-
-
-@allow_storage
-@dataclass
 class ExecutionReceipt:
     action_id: str
     executor: Address
     result: str
     proof: str
-
-
-@allow_storage
-@dataclass
-class AuditEvent:
-    action_id: str
-    event_type: str
-    message: str
 
 
 class AgentPermissionFirewall(gl.Contract):
@@ -132,22 +95,15 @@ class AgentPermissionFirewall(gl.Contract):
     action_status: TreeMap[str, ActionStatus]
     decisions: TreeMap[str, Decision]
     reviewers: TreeMap[str, Reviewer]
-    votes: TreeMap[str, ReviewerVote]
-    consensus: ConsensusConfig
-    execution_checks: TreeMap[str, ExecutionGuard]
     execution_receipts: TreeMap[str, ExecutionReceipt]
-    audit_events: TreeMap[str, AuditEvent]
-    emergency: EmergencyControl
 
     def __init__(self):
         self.admin = gl.message.sender_address
-        self.consensus = ConsensusConfig(minimum_votes=2)
-        self.emergency = EmergencyControl(paused=False, reason="")
 
     def _require_admin(self):
         assert gl.message.sender_address == self.admin
 
-    # ================= WRITE METHODS =================
+    # ================= PUBLIC WRITE METHODS =================
 
     @gl.public.write
     def register_agent(self, agent_id: str):
@@ -159,12 +115,6 @@ class AgentPermissionFirewall(gl.Contract):
             owner=gl.message.sender_address,
             status="ACTIVE",
             created_version=1,
-        )
-
-        self.audit_events[agent_id + ":register"] = AuditEvent(
-            action_id=agent_id,
-            event_type="AGENT_REGISTERED",
-            message="Agent registered successfully",
         )
 
     @gl.public.write
@@ -222,15 +172,13 @@ class AgentPermissionFirewall(gl.Contract):
         )
 
     @gl.public.write
-    def add_reviewer(self, reviewer_id: str, account: Address, role: str):
+    def add_reviewer(self, reviewer_id: str, account_str: str, role: str):
         self._require_admin()
         assert reviewer_id != ""
         assert reviewer_id not in self.reviewers
 
-        addr = Address(account) if isinstance(account, str) else account
-
         self.reviewers[reviewer_id] = Reviewer(
-            account=addr, role=role, active=True
+            account=Address(account_str), role=role, active=True
         )
 
     @gl.public.write
@@ -242,7 +190,6 @@ class AgentPermissionFirewall(gl.Contract):
         amount: u256,
         scope_id: str,
     ):
-        assert not self.emergency.paused
         assert action_id != ""
         assert action_id not in self.actions
         assert agent_id in self.agents
@@ -278,9 +225,7 @@ class AgentPermissionFirewall(gl.Contract):
         limit.current_requests += 1
         self.rate_limits[agent_id] = limit
 
-    # ================= NONDET / AI METHODS =================
-
-    @gl.public.nondet
+    @gl.public.write
     def evaluate_action_consensus(self, action_id: str):
         assert action_id in self.actions
 
@@ -317,47 +262,6 @@ class AgentPermissionFirewall(gl.Contract):
         )
         self.action_status[action_id] = ActionStatus(current=next_status)
 
-    # ================= ADDITIONAL WRITE METHODS =================
-
-    @gl.public.write
-    def vote_action(
-        self, vote_id: str, action_id: str, reviewer_id: str, result: str, reason: str
-    ):
-        assert action_id in self.actions
-        assert reviewer_id in self.reviewers
-        assert self.reviewers[reviewer_id].active
-        assert gl.message.sender_address == self.reviewers[reviewer_id].account
-        assert vote_id not in self.votes
-
-        self.votes[vote_id] = ReviewerVote(
-            action_id=action_id,
-            reviewer=gl.message.sender_address,
-            result=result,
-            reason=reason,
-        )
-
-    @gl.public.write
-    def finalize_human_review(self, action_id: str, approved: bool):
-        self._require_admin()
-        assert action_id in self.actions
-        assert action_id in self.decisions
-        assert self.decisions[action_id].requires_review
-
-        if approved:
-            self.decisions[action_id] = Decision(
-                result="APPROVED",
-                reason="Human Review Passed",
-                requires_review=False,
-            )
-            self.action_status[action_id] = ActionStatus(current="APPROVED")
-        else:
-            self.decisions[action_id] = Decision(
-                result="REJECTED",
-                reason="Human Review Rejected",
-                requires_review=False,
-            )
-            self.action_status[action_id] = ActionStatus(current="REJECTED")
-
     @gl.public.write
     def record_execution(self, action_id: str, proof: str):
         self._require_admin()
@@ -373,17 +277,7 @@ class AgentPermissionFirewall(gl.Contract):
         )
         self.action_status[action_id] = ActionStatus(current="EXECUTED")
 
-    @gl.public.write
-    def pause_contract(self, reason: str):
-        self._require_admin()
-        self.emergency = EmergencyControl(paused=True, reason=reason)
-
-    @gl.public.write
-    def unpause_contract(self):
-        self._require_admin()
-        self.emergency = EmergencyControl(paused=False, reason="")
-
-    # ================= VIEW METHODS =================
+    # ================= PUBLIC VIEW METHODS =================
 
     @gl.public.view
     def get_action_status(self, action_id: str) -> str:
@@ -396,19 +290,3 @@ class AgentPermissionFirewall(gl.Contract):
         if action_id not in self.decisions:
             return "NOT_FOUND"
         return self.decisions[action_id].result
-
-    @gl.public.view
-    def is_paused(self) -> bool:
-        return self.emergency.paused
-
-    @gl.public.view
-    def get_agent_status(self, agent_id: str) -> str:
-        if agent_id not in self.agents:
-            return "NOT_FOUND"
-        return self.agents[agent_id].status
-
-    @gl.public.view
-    def get_execution_receipt(self, action_id: str) -> str:
-        if action_id not in self.execution_receipts:
-            return "NOT_EXECUTED"
-        return self.execution_receipts[action_id].result
