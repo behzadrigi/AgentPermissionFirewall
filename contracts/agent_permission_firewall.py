@@ -278,8 +278,10 @@ class AgentPermissionFirewall(gl.Contract):
         limit.current_requests += 1
         self.rate_limits[agent_id] = limit
 
-    @gl.public.write
-    def evaluate_action_consensus(self, action_id: str):
+    # ================= NONDET / AI METHODS =================
+
+    @gl.public.nondet
+    def evaluate_action_consensus(self, action_id: str) -> str:
         assert action_id in self.actions
 
         req = self.actions[action_id]
@@ -314,6 +316,9 @@ class AgentPermissionFirewall(gl.Contract):
             result=res, reason=reason, requires_review=policy.requires_human_review
         )
         self.action_status[action_id] = ActionStatus(current=next_status)
+        return res
+
+    # ================= ADDITIONAL WRITE METHODS =================
 
     @gl.public.write
     def vote_action(
