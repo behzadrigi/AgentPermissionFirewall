@@ -138,68 +138,29 @@ class SecurityCheck:
 
 
 class AgentPermissionFirewall(gl.Contract):
-    # 01 Admin / authority
     admin: Address
-
-    # 02 Agent identity
     agents: TreeMap[str, AgentIdentity]
-
-    # 03 Policy registry
     policies: TreeMap[str, Policy]
-
-    # 04 Policy binding
     policy_bindings: TreeMap[str, PolicyBinding]
-
-    # 05 Permission scopes
     permission_scopes: TreeMap[str, PermissionScope]
-
-    # 06 Rate limiting
     rate_limits: TreeMap[str, RateLimit]
-
-    # 07 Action registry
     actions: TreeMap[str, ActionRequest]
-
-    # 08 Action lifecycle
     action_status: TreeMap[str, ActionStatus]
-
-    # 09 Risk decisions
     decisions: TreeMap[str, Decision]
-
-    # 10 Human approvals
     human_approvals: TreeMap[str, HumanApproval]
-
-    # 11 Reviewers
     reviewers: TreeMap[str, Reviewer]
-
-    # 12 Reviewer votes
     votes: TreeMap[str, ReviewerVote]
-
-    # 13 Consensus
     consensus: ConsensusConfig
-
-    # 14 Execution guard
     execution_checks: TreeMap[str, ExecutionGuard]
-
-    # 15 Execution receipts
     execution_receipts: TreeMap[str, ExecutionReceipt]
-
-    # 16 Audit events
     audit_events: TreeMap[str, AuditEvent]
-
-    # 17 Security checks
     security_checks: TreeMap[str, SecurityCheck]
-
-    # 18 Emergency control
     emergency: EmergencyControl
 
     def __init__(self):
         self.admin = gl.message.sender_address
         self.consensus = ConsensusConfig(minimum_votes=2)
         self.emergency = EmergencyControl(paused=False, reason="")
-
-    # --------------------------------------------------
-    # 19 AUTHORITY
-    # --------------------------------------------------
 
     def _is_admin(self) -> bool:
         return gl.message.sender_address == self.admin
@@ -214,10 +175,6 @@ class AgentPermissionFirewall(gl.Contract):
 
     def _require_owner(self, agent_id: str):
         assert self._is_agent_owner(agent_id)
-
-    # --------------------------------------------------
-    # 20 AGENT MANAGEMENT
-    # --------------------------------------------------
 
     @gl.public.write
     def register_agent(self, agent_id: str):
@@ -254,10 +211,6 @@ class AgentPermissionFirewall(gl.Contract):
         agent = self.agents[agent_id]
         agent.status = "ACTIVE"
         self.agents[agent_id] = agent
-
-    # --------------------------------------------------
-    # 21 POLICY
-    # --------------------------------------------------
 
     @gl.public.write
     def set_policy(
@@ -312,10 +265,6 @@ class AgentPermissionFirewall(gl.Contract):
         binding.active = True
         self.policy_bindings[agent_id] = binding
 
-    # --------------------------------------------------
-    # 22 PERMISSION SCOPE
-    # --------------------------------------------------
-
     @gl.public.write
     def create_scope(self, scope_id: str, name: str, risk_level: u32):
         self._require_admin()
@@ -345,10 +294,6 @@ class AgentPermissionFirewall(gl.Contract):
         scope.enabled = True
         self.permission_scopes[scope_id] = scope
 
-    # --------------------------------------------------
-    # 23 RATE LIMIT
-    # --------------------------------------------------
-
     @gl.public.write
     def set_rate_limit(self, agent_id: str, max_requests: u32):
         self._require_admin()
@@ -367,10 +312,6 @@ class AgentPermissionFirewall(gl.Contract):
         limit = self.rate_limits[agent_id]
         limit.current_requests = 0
         self.rate_limits[agent_id] = limit
-
-    # --------------------------------------------------
-    # 24 ACTION SUBMISSION
-    # --------------------------------------------------
 
     @gl.public.write
     def submit_action(
@@ -430,10 +371,6 @@ class AgentPermissionFirewall(gl.Contract):
             message="Action submitted",
         )
 
-    # --------------------------------------------------
-    # 25 ACTION LIFECYCLE
-    # --------------------------------------------------
-
     @gl.public.write
     def update_action_status(self, action_id: str, new_status: str):
         self._require_admin()
@@ -464,10 +401,6 @@ class AgentPermissionFirewall(gl.Contract):
 
         self.action_status[action_id] = ActionStatus(current=new_status)
 
-    # --------------------------------------------------
-    # 26 RISK DECISION & NON-DETERMINISTIC CONSENSUS (UPDATED)
-    # --------------------------------------------------
-
     @gl.public.write
     def evaluate_action(self, action_id: str):
         self._require_admin()
@@ -477,7 +410,7 @@ class AgentPermissionFirewall(gl.Contract):
         policy = self.policies[action.agent_id]
         scope = self.permission_scopes[action.scope_id]
 
-        # GenLayer AI Validator Consensus (Non-Deterministic Evaluation)
+        # GenLayer Non-Deterministic Consensus Execution
         prompt = f"""
         You are an AI Security Validator node in GenLayer network.
         Evaluate safety for Agent Action Request:
@@ -509,10 +442,6 @@ class AgentPermissionFirewall(gl.Contract):
 
         self.action_status[action_id] = ActionStatus(current=next_status)
 
-    # --------------------------------------------------
-    # 27 HUMAN APPROVAL
-    # --------------------------------------------------
-
     @gl.public.write
     def submit_human_approval(
         self, action_id: str, decision: str, reason: str
@@ -541,10 +470,6 @@ class AgentPermissionFirewall(gl.Contract):
                 result="REJECTED", reason=reason, requires_review=False
             )
             self.action_status[action_id] = ActionStatus(current="REJECTED")
-
-    # --------------------------------------------------
-    # 28 REVIEWER / CONSENSUS
-    # --------------------------------------------------
 
     @gl.public.write
     def register_reviewer(self, reviewer_id: str, role: str):
@@ -620,10 +545,6 @@ class AgentPermissionFirewall(gl.Contract):
             )
             self.action_status[action_id] = ActionStatus(current="REJECTED")
 
-    # --------------------------------------------------
-    # 29 EXECUTION GUARD
-    # --------------------------------------------------
-
     @gl.public.write
     def check_execution_guard(self, action_id: str):
         self._require_admin()
@@ -659,10 +580,6 @@ class AgentPermissionFirewall(gl.Contract):
             allowed=allowed, reason=reason
         )
 
-    # --------------------------------------------------
-    # 30 EXECUTION RECEIPT
-    # --------------------------------------------------
-
     @gl.public.write
     def create_execution_receipt(
         self, action_id: str, executor: str, result: str, proof: str
@@ -692,10 +609,6 @@ class AgentPermissionFirewall(gl.Contract):
             action_id=action_id, event_type="EXECUTION_RECEIPT", message=result
         )
 
-    # --------------------------------------------------
-    # 31 EMERGENCY / SECURITY / AUDIT
-    # --------------------------------------------------
-
     @gl.public.write
     def pause_system(self, reason: str):
         self._require_admin()
@@ -722,10 +635,6 @@ class AgentPermissionFirewall(gl.Contract):
             self.security_checks[action_id] = SecurityCheck(
                 passed=True, reason="Action id available"
             )
-
-    # --------------------------------------------------
-    # AUDIT READ METHODS
-    # --------------------------------------------------
 
     @gl.public.view
     def get_action_status(self, action_id: str) -> str:
