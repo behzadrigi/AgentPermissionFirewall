@@ -227,8 +227,11 @@ class AgentPermissionFirewall(gl.Contract):
         assert reviewer_id != ""
         assert reviewer_id not in self.reviewers
 
+        # Fix: Convert input string to Address object if passed as string
+        addr = Address(account) if isinstance(account, str) else account
+
         self.reviewers[reviewer_id] = Reviewer(
-            account=account, role=role, active=True
+            account=addr, role=role, active=True
         )
 
     @gl.public.write
