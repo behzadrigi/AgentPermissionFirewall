@@ -73,13 +73,18 @@ class AgentPermissionFirewall(gl.Contract):
     # ================= PUBLIC WRITE METHODS =================
 
     @gl.public.write
-    def register_agent(self, agent_id: str, owner: Address):
+    def register_agent(self, agent_id: str, owner: str):
         # Binds this agent_id to a single authorized submitting address.
         # Only that address (verified in submit_action) may act as this
         # agent going forward.
+        # NOTE: owner is accepted as a plain hex string (per GenLayer's
+        # documented pattern for address parameters on public methods) and
+        # converted to Address internally, rather than typing the
+        # parameter itself as Address.
         assert gl.message.sender_address == self.admin
         assert agent_id != ""
-        self.agents[agent_id] = Agent(owner=owner, active=True)
+        owner_address = Address(owner)
+        self.agents[agent_id] = Agent(owner=owner_address, active=True)
 
     @gl.public.write
     def set_policy(
